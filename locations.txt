@@ -1,0 +1,1 @@
+{"currentRoom": undefined, "shop": undefined, "pirateRy":undefined}
