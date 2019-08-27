@@ -7,7 +7,7 @@ function doOnExit(exitHandler) {
   process.on("SIGUSR1", exitHandler.bind(null));
   process.on("SIGUSR2", exitHandler.bind(null));
   //catches uncaught exceptions
-  process.on("uncaughtException", exitHandler.bind(null));
+  // process.on("uncaughtException", exitHandler.bind(null));
 }
 
 module.exports = doOnExit;

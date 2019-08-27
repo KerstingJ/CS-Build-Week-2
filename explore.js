@@ -32,7 +32,7 @@ function exploreDeep(islandMap, currentRoom, move = null) {
   // if we have a command to move
   return new Promise((resolve, reject) => {
     if (move) {
-      console.log("Moving");
+      console.log(`Moving ${move}`);
       // configure our data for the request
       data = {
         direction: move
@@ -40,7 +40,7 @@ function exploreDeep(islandMap, currentRoom, move = null) {
       // if we're moving to a room we've been before lets get the bonus
       if (islandMap[currentRoom] && islandMap[currentRoom][move]) {
         if (islandMap[currentRoom][move] !== "?") {
-          data.next_room_id = islandMap[currentRoom][move];
+          data.next_room_id = `${islandMap[currentRoom][move]}`;
         }
       }
 
@@ -50,27 +50,45 @@ function exploreDeep(islandMap, currentRoom, move = null) {
       axios
         .post(`${BASE_URL}/adv/move/`, data, config)
         .then(res => {
-          console.log(res);
           logger.logObject(res.data);
           const { data } = res;
-          console.log({ data }); // We never make it this far
+          console.log({ data });
           // Update our Room ID
           // if we got a res we've moved
           // so update our data
           lastRoom = currentRoom;
           currentRoom = data.room_id;
           cooldown = data.cooldown;
+          if (
+            data.title.toLowerCase() === "piratery" ||
+            data.title.toLowerCase() === "pirate ry"
+          ) {
+            pirateRy = data.room_id;
+          }
+
+          // get directions for current room and add to map
+          console.log("CHECK: \n\n\n", {
+            exits: data.exits,
+            move,
+            currentRoom,
+            lastRoom
+          });
 
           // update our map to show the rooms are connected
           islandMap[lastRoom][move] = currentRoom;
 
-          // get directions for current room and add to map
-          for (d in data.exits) {
+          // initialize current room
+          if (islandMap[currentRoom] === undefined) {
+            islandMap[currentRoom] = {};
+          }
+
+          // set last room info
+          islandMap[currentRoom][opposites[move]] = lastRoom;
+
+          for (d of data.exits) {
             if (d !== opposites[move]) {
               // any direction that isnt the direction we came from is a '?'
               islandMap[currentRoom][d] = "?";
-            } else if (d === move) {
-              islandMap[currentRoom][d] = lastRoom;
             }
           }
 
@@ -89,24 +107,23 @@ function exploreDeep(islandMap, currentRoom, move = null) {
             // return
             // TODO: here we need to do something to change
             console.log("Found a dead end, Exiting");
-            //   process.exit();
+            process.exit();
           }
-          console.log("Returning", { cooldown, nextMove, currentRoom });
           resolve({ cooldown, nextMove, currentRoom });
-        }, console.log)
+        })
         .catch(err => {
-          console.log(err);
-          reject(err.message);
+          reject(err);
         });
     } else {
       // if we dont have a move queued
       console.log("No move queued");
-      let unopened = islandMap[currentRoom]
-        .keys()
-        .filter(k => islandMap[currentRoom][k] === "?");
+      console.log({ islandMap, currentRoom });
+      let unopened = Object.keys(islandMap[currentRoom]).filter(
+        k => islandMap[currentRoom][k] === "?"
+      );
       if (unopened.length > 0) {
         nextMove = unopened[Math.floor(Math.random() * unopened.length)];
-        resolve(nextMove);
+        resolve({ nextMove, cooldown: 1 });
       } else {
         // return
         // TODO: here we need to switch our goal and do a BFS to the nearest unopened door

@@ -47,10 +47,9 @@ function findPath(islandMap, currentRoom, compare) {
         return path;
       }
 
-      doors = islandMap[room].keys();
-      for (let d of doors) {
-        q.push([...path, islandMap[room][d]]);
-      }
+      Object.keys(islandMap[room]).forEach(d =>
+        q.push([...path, islandMap[room][d]])
+      );
     }
   }
 
@@ -65,35 +64,46 @@ function travel(islandMap, currentRoom, path, start = 0) {
    *
    *
    * */
-  if (path.length === start) {
-    return;
-  }
-
-  let directions = islandMap[currentRoom].keys();
-  nextRoom = path[start];
-
-  for (let d of directions) {
-    if (islandMap[currentRoom][d] === nextRoom) {
-      let data = { direction: d, next_room_id: nextRoom };
-      axios
-        .post(`${BASE_URL}/adv/move/`, data, config)
-        .then(res => {
-          let { data } = res;
-          logger.logObject({ time: Date.now(), ...data });
-          lastRoom = currentRoom;
-          currentRoom = data.room_id;
-          cooldown = data.cooldownl;
-
-          return { path, currentRoom, cooldown };
-        })
-        .then(res => {
-          // wait for timeout and do it again
-          setTimeout(
-            () => travel(islandMap, res.currentRoom, res.path, start + 1),
-            res.cooldown * 1000
-          );
-        })
-        .catch(console.log);
+  return new Promise((resolve, reject) => {
+    if (path.length === start) {
+      resolve();
     }
-  }
+
+    let directions = Object.keys(islandMap[currentRoom]);
+    nextRoom = path[start];
+
+    for (let d of directions) {
+      if (islandMap[currentRoom][d] === nextRoom) {
+        let data = { direction: d, next_room_id: nextRoom };
+        axios
+          .post(`${BASE_URL}/adv/move/`, data, config)
+          .then(res => {
+            let { data } = res;
+            logger.logObject({ time: Date.now(), ...data });
+            lastRoom = currentRoom;
+            currentRoom = data.room_id;
+            cooldown = data.cooldown;
+
+            return { path, currentRoom, cooldown };
+          })
+          .then(res => {
+            // wait for timeout and do it again
+            console.log(`Moved ${start + 1} of ${path.length} steps down path`);
+            setTimeout(
+              () => travel(islandMap, res.currentRoom, res.path, start + 1),
+              res.cooldown * 1000
+            );
+          })
+          .catch(err => {
+            console.log(err);
+            reject(err.message);
+          });
+      }
+    }
+  });
 }
+
+module.exports = {
+  findPath,
+  travel
+};
