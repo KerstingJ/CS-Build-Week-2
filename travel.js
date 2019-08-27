@@ -1,5 +1,6 @@
 const c = require("./config.js");
-const logger = require("./logger");
+const axios = require("axios");
+const logger = require("./logger.js");
 let { config, BASE_URL } = c;
 
 // This is used to help fill in our map as we explore
