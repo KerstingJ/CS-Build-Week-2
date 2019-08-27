@@ -1,1 +1,1 @@
-{"currentRoom": undefined, "shop": undefined, "pirateRy":undefined}
+{"shop":1,"currentRoom":0}
