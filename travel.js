@@ -56,13 +56,20 @@ function findPath(islandMap, currentRoom, compare) {
   return null;
 }
 
-function travel(islandMap, currentRoom, path) {
-  if (path.length < 1) {
+function travel(islandMap, currentRoom, path, start = 0) {
+  /*
+   *
+   *   Recursive function that travels one step of a path each call
+   *   removing the last piece of the path
+   *
+   *
+   * */
+  if (path.length === start) {
     return;
   }
 
   let directions = islandMap[currentRoom].keys();
-  nextRoom = path.pop();
+  nextRoom = path[start];
 
   for (let d of directions) {
     if (islandMap[currentRoom][d] === nextRoom) {
@@ -79,8 +86,9 @@ function travel(islandMap, currentRoom, path) {
           return { path, currentRoom, cooldown };
         })
         .then(res => {
+          // wait for timeout and do it again
           setTimeout(
-            () => travel(islandMap, res.currentRoom, res.path),
+            () => travel(islandMap, res.currentRoom, res.path, start + 1),
             res.cooldown * 1000
           );
         })
