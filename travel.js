@@ -35,8 +35,9 @@ function findPath(islandMap, currentRoom, compare) {
 
   let visited = new Set();
   let q = [[currentRoom]];
+  console.log(islandMap, currentRoom);
 
-  while (queue.length > 0) {
+  while (q.length > 0) {
     path = q.shift();
     room = path[path.length - 1];
 
@@ -47,16 +48,19 @@ function findPath(islandMap, currentRoom, compare) {
         return path;
       }
 
-      Object.keys(islandMap[room]).forEach(d =>
-        q.push([...path, islandMap[room][d]])
-      );
+      Object.keys(islandMap[room]).forEach(d => {
+        if (islandMap[room][d] !== "?") {
+          q.push([...path, islandMap[room][d]]);
+        }
+      });
     }
   }
 
   return null;
 }
 
-function travel(islandMap, currentRoom, path, start = 0) {
+function travel(islandMap, path, cooldown, exploring = false, start = 0) {
+  console.log("traveling down", path.slice(start, path.length));
   /*
    *
    *   Recursive function that travels one step of a path each call
@@ -64,42 +68,73 @@ function travel(islandMap, currentRoom, path, start = 0) {
    *
    *
    * */
-  return new Promise((resolve, reject) => {
-    if (path.length === start) {
-      resolve();
-    }
+  currentRoom = path[start];
 
+  return new Promise((resolve, reject) => {
     let directions = Object.keys(islandMap[currentRoom]);
-    nextRoom = path[start];
+    nextRoom = path[start + 1];
+
+    foundPath = false;
 
     for (let d of directions) {
       if (islandMap[currentRoom][d] === nextRoom) {
-        let data = { direction: d, next_room_id: nextRoom };
+        console.log(`From ${currentRoom} move ${d} to room ${nextRoom}`);
+        foundPath = true;
+        let req_data = { direction: `${d}`, next_room_id: `${nextRoom}` };
+
+        // console.log(`${BASE_URL}/adv/move/`, req_data, config);
         axios
-          .post(`${BASE_URL}/adv/move/`, data, config)
+          .post(`${BASE_URL}/adv/move/`, req_data, config)
           .then(res => {
+            console.log(req_data);
+            console.log(res.data);
+            // process.exit();
             let { data } = res;
-            logger.logObject({ time: Date.now(), ...data });
+            logger.logObject(data);
             lastRoom = currentRoom;
             currentRoom = data.room_id;
             cooldown = data.cooldown;
+            console.log(
+              `Moving ${start + 1} of ${path.length} steps down path\n\n`
+            );
+
+            // data.items.forEach(item => {
+            //   if (item.includes("treasure")) {
+            //     console.log("Found a treasure");
+            //     process.exit();
+            //   }
+            // });
+
+            if (path.length - 1 === start) {
+              resolve({
+                goal: "explore",
+                currentRoom,
+                cooldown,
+                nextMove: null
+              });
+            }
 
             return { path, currentRoom, cooldown };
           })
           .then(res => {
             // wait for timeout and do it again
-            console.log(`Moved ${start + 1} of ${path.length} steps down path`);
-            setTimeout(
-              () => travel(islandMap, res.currentRoom, res.path, start + 1),
-              res.cooldown * 1000
-            );
+            console.log("calling next move");
+            setTimeout(() => {
+              travel(islandMap, res.path, res.cooldown, exploring, start + 1)
+                .then(data => resolve(data))
+                .catch(err => console.log(err));
+            }, res.cooldown * 1000);
           })
           .catch(err => {
-            console.log(err);
-            reject(err.message);
+            reject({ ...err.response.data, currentRoom });
           });
+
+        break;
       }
     }
+
+    if (!foundPath)
+      resolve({ goal: "explore", currentRoom, cooldown, nextMove: null });
   });
 }
 

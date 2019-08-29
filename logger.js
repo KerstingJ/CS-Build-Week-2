@@ -9,4 +9,18 @@ function logObject(object, path = null) {
   });
 }
 
-module.exports = { logObject };
+function saveMap(islandMap) {
+  console.log("Saving Data");
+  let mapData = { ...islandMap };
+  mapData = JSON.stringify(mapData);
+  fs.writeFileSync("./map.txt", mapData);
+}
+
+function saveLocations({ shop, pirateRy, currentRoom }) {
+  locations = { shop, pirateRy, currentRoom };
+  locations = JSON.stringify(locations);
+  fs.writeFileSync("./locations.txt", locations);
+  console.log("Done Saving");
+}
+
+module.exports = { logObject, saveMap, saveLocations };
