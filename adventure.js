@@ -10,23 +10,21 @@ const travel = require("./travel.js");
 
 // Read Data from our text files and bring into game state
 // use map data from map.txt to store map data
-let mapData = fs.readFileSync("./map.txt");
-let islandMap = JSON.parse(mapData);
-// locations of player, shop, and pirate ry
-let locationData = fs.readFileSync("./locations.txt");
-let locations = JSON.parse(locationData);
-let { shop, pirateRy, currentRoom } = locations;
+let tempMapData = fs.readFileSync("./_.map.txt");
+let islandMap = JSON.parse(tempMapData);
+
+tempMapData = fs.readFileSync("./complete_map.txt");
+let fullMap = JSON.parse(tempMapData);
 
 // // Set up an Exit handler so that the current state is saved on exit
-doOnExit(() => {
-  logger.saveMap(islandMap);
-  logger.saveLocations({ shop, pirateRy, currentRoom });
-  process.exit(0);
-});
+// doOnExit(() => {
+//   logger.saveMap(islandMap);
+//   process.exit(0);
+// });
 
 // Initialize the game
 // TODO this could probably be in an other function
-const initializeMap = (islandMap, locations) => {
+const initializeMap = islandMap => {
   let { config, BASE_URL } = c;
   return new Promise((resolve, reject) => {
     axios
@@ -42,16 +40,11 @@ const initializeMap = (islandMap, locations) => {
         if (islandMap[room_id] === undefined) {
           islandMap[room_id] = {};
           for (let d of exits) {
-            islandMap[data.room_id][d] = "?";
+            islandMap[room_id][d] = "?";
           }
         }
 
-        if (locations.currentRoom !== room_id) {
-          console.log("Something weird is going on");
-          locations.currentRoom = room_id;
-        }
-
-        resolve({ ...locations, cooldown });
+        resolve({ currentRoom: room_id, cooldown });
       })
       .catch(reject);
   });
@@ -73,7 +66,7 @@ function main(state) {
     let unopened = Object.keys(islandMap[room_id]).filter(
       d => islandMap[room_id][d] === "?"
     );
-    return unopened.length > 0 && room_id < 229;
+    return unopened.length > 0;
   }
 
   function mainLoop(state) {
@@ -93,7 +86,6 @@ function main(state) {
                 ...state,
                 ...data
               };
-              console.log("State after exploring", state);
               return state;
             })
             .then(state =>
@@ -105,11 +97,11 @@ function main(state) {
 
         break;
 
-      case "shop":
+      case "travel":
         // gonna travel to the shop
-        console.log("Finding Path to Shop");
+        console.log("Finding Path");
         let path = travel.findPath(
-          islandMap,
+          fullMap,
           state.currentRoom,
           room => room === state.shop
         );
@@ -117,13 +109,12 @@ function main(state) {
         if (path) {
           console.log("Traveling Path");
           travel
-            .travel(islandMap, path, state.cooldown)
+            .travel(fullMap, path, state.cooldown)
             .then(data => {
               state = {
                 ...state,
                 ...data
               };
-              console.log("State after traveling", state);
               process.exit();
             })
             .catch(console.log);
@@ -147,7 +138,6 @@ function main(state) {
                   ...state,
                   ...data
                 };
-                console.log("State after traveling", state);
                 mainLoop(state);
               })
               .catch(res => {
@@ -184,9 +174,9 @@ if (process.argv.length > 2) {
     console.log(islandMap);
   }
 
-  shop = goal === "shop" ? process.argv[3] - 0 : 250;
+  shop = goal === "travel" ? process.argv[3] - 0 : 250;
 
-  initializeMap(islandMap, locations)
+  initializeMap(islandMap)
     .then(initData => {
       console.log(initData);
       setTimeout(() => {

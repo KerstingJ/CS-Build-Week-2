@@ -35,7 +35,7 @@ function findPath(islandMap, currentRoom, compare) {
 
   let visited = new Set();
   let q = [[currentRoom]];
-  console.log(islandMap, currentRoom);
+  // console.log(islandMap, currentRoom);
 
   while (q.length > 0) {
     path = q.shift();
@@ -60,7 +60,7 @@ function findPath(islandMap, currentRoom, compare) {
 }
 
 function travel(islandMap, path, cooldown, exploring = false, start = 0) {
-  console.log("traveling down", path.slice(start, path.length));
+  // console.log("traveling down", path.slice(start, path.length));
   /*
    *
    *   Recursive function that travels one step of a path each call
@@ -78,25 +78,25 @@ function travel(islandMap, path, cooldown, exploring = false, start = 0) {
 
     for (let d of directions) {
       if (islandMap[currentRoom][d] === nextRoom) {
+        console.log(
+          `Moving ${start + 1} of ${path.length} steps down path\n\n`
+        );
         console.log(`From ${currentRoom} move ${d} to room ${nextRoom}`);
         foundPath = true;
         let req_data = { direction: `${d}`, next_room_id: `${nextRoom}` };
 
         // console.log(`${BASE_URL}/adv/move/`, req_data, config);
         axios
-          .post(`${BASE_URL}/adv/move/`, req_data, config)
+          .post(`${BASE_URL}/adv/fly/`, req_data, config)
           .then(res => {
-            console.log(req_data);
-            console.log(res.data);
+            // console.log(req_data);
+            // console.log(res.data);
             // process.exit();
             let { data } = res;
             logger.logObject(data);
             lastRoom = currentRoom;
             currentRoom = data.room_id;
             cooldown = data.cooldown;
-            console.log(
-              `Moving ${start + 1} of ${path.length} steps down path\n\n`
-            );
 
             // data.items.forEach(item => {
             //   if (item.includes("treasure")) {

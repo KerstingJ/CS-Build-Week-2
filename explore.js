@@ -42,7 +42,7 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
 
       // console.log(`${BASE_URL}/adv/move/`, data, config);
       axios
-        .post(`${BASE_URL}/adv/move/`, data, config)
+        .post(`${BASE_URL}/adv/fly/`, data, config)
         .then(res => {
           logger.logObject(res.data);
           const { data } = res;
@@ -67,7 +67,10 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
           islandMap[lastRoom][move] = currentRoom;
 
           for (d of data.exits) {
-            if (d !== opposites[move]) {
+            if (
+              d !== opposites[move] &&
+              islandMap[currentRoom][d] === undefined
+            ) {
               // any direction that isnt the direction we came from is a '?'
               islandMap[currentRoom][d] = "?";
             }
@@ -77,11 +80,6 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
             [lastRoom]: islandMap[lastRoom],
             [currentRoom]: islandMap[currentRoom]
           });
-
-          if (data.room_id === 250) {
-            console.log("FOUND THE MINE");
-            process.exit();
-          }
 
           logger.saveMap(islandMap);
           // data.items.forEach(item => {
@@ -97,9 +95,15 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
           let unopened = data.exits.filter(
             d => islandMap[currentRoom][d] === "?"
           );
-          if (unopened.length > 0 && currentRoom <= 250) {
+          if (unopened.length > 0) {
             // if we have any unopened doors
-            nextMove = unopened[0];
+            if (unopened.includes("n")) {
+              nextMove = "n";
+            } else if (unopened.includes("e")) {
+              nextMove = "e";
+            } else {
+              nextMove = unopened[0];
+            }
           } else {
             // return
             // TODO: here we need to do something to change
@@ -107,15 +111,50 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
             resolve({ goal: "findDoor", currentRoom });
           }
 
+          const has_items = () => {
+            let eggs = data.items.filter(item => item.includes("treasure"));
+            if (eggs.length > 0) {
+              return eggs[0];
+            }
+            return false;
+          };
+
+          const pick_up_Item = name => {
+            return new Promise((resolve, reject) => {
+              let req_data = { name: name };
+              axios
+                .post(`${BASE_URL}/adv/take/`, req_data, config)
+                .then(res => {
+                  console.log(`\n\nFound a ${name}\n\n`);
+                  cooldown = res.data.cooldown;
+                  resolve({ cooldown, nextMove, currentRoom, errors: [null] });
+                })
+                .catch(err => {
+                  console.log(`couldnt pick up a ${name}`);
+                  console.log(err);
+                  reject(err);
+                });
+            });
+          };
+
+          // if (has_items()) {
+          //   setTimeout(() => {
+          //     pick_up_Item(has_items())
+          //       .then(res => resolve(res))
+          //       .catch(err => reject(err));
+          //   }, cooldown * 1000);
+          // } else {
           resolve({ cooldown, nextMove, currentRoom, errors: [null] });
+          // }
         })
         .catch(err => {
+          console.log(err);
           reject(err.response.data);
         });
     } else {
       // if we dont have a move queued
       console.log("No move queued");
-      console.log({ islandMap, currentRoom });
+      // console.log({ islandMap, currentRoom });
       let unopened = Object.keys(islandMap[currentRoom]).filter(
         k => islandMap[currentRoom][k] === "?"
       );

@@ -1,1 +1,0 @@
-{"shop":60,"currentRoom":15}
