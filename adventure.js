@@ -70,14 +70,16 @@ function main(state) {
   }
 
   function mainLoop(state) {
-    console.log(state.goal);
+    // console.log(state.goal);
     // if (state.pirateRy) {
     //   pirateRy = state.pirateRy;
     // }
     switch (state.goal) {
       case "explore":
         // explore a room
+        console.log(`waiting ${state.cooldown} seconds before moving`);
         setTimeout(() => {
+          state.cooldown = 0;
           exploreDeep(islandMap, state)
             .then(data => {
               // upadate state that we are in next room
@@ -107,7 +109,6 @@ function main(state) {
         );
 
         if (path) {
-          console.log("Traveling Path");
           travel
             .travel(fullMap, path, state.cooldown)
             .then(data => {
@@ -129,7 +130,7 @@ function main(state) {
         let p = travel.findPath(islandMap, state.currentRoom, findUnopenedDoor);
 
         if (p) {
-          console.log("Traveling Path");
+          console.log(`waiting ${state.cooldown} seconds before moving`);
           setTimeout(() => {
             travel
               .travel(islandMap, p, state.cooldown, true)
@@ -141,6 +142,7 @@ function main(state) {
                 mainLoop(state);
               })
               .catch(res => {
+                console.log(res);
                 if (res.cooldown) {
                   state = {
                     ...state,
@@ -179,6 +181,7 @@ if (process.argv.length > 2) {
   initializeMap(islandMap)
     .then(initData => {
       console.log(initData);
+      console.log(`waiting ${initData.cooldown} seconds before moving`);
       setTimeout(() => {
         main({ ...initData, goal, shop });
       }, initData.cooldown * 1000);

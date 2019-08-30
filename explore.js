@@ -1,7 +1,7 @@
 const c = require("./config.js");
 const axios = require("axios");
 const logger = require("./logger.js");
-let { config, BASE_URL } = c;
+let { config, BASE_URL, treasure } = c;
 
 // This is used to help fill in our map as we explore
 const opposites = {
@@ -11,8 +11,7 @@ const opposites = {
   w: "e"
 };
 
-function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
-  console.log("\n\n\nExploring");
+function exploreDeep(islandMap, { currentRoom, nextMove: move, cooldown }) {
   /*
    * @param islandMap is an adjacency matrix in the form of
    * {id: {'n': '?', 's': to_id}}
@@ -34,7 +33,6 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
   // if we have a command to move
   return new Promise((resolve, reject) => {
     if (move) {
-      console.log(`Moving ${move}`);
       // configure our data for the request
       data = {
         direction: move
@@ -54,16 +52,16 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
           currentRoom = data.room_id;
           cooldown = data.cooldown;
 
-          console.log("TESTING", { lastRoom, currentRoom, move });
+          // console.log("TESTING", { lastRoom, currentRoom, move });
+          console.log(`Moved ${move} from room ${lastRoom} to ${currentRoom}`);
 
           // initialize current room
           if (islandMap[currentRoom] === undefined) {
             islandMap[currentRoom] = {};
           }
 
-          // set last room info
-          islandMap[currentRoom][opposites[move]] = lastRoom;
           // update our map to show the rooms are connected
+          islandMap[currentRoom][opposites[move]] = lastRoom;
           islandMap[lastRoom][move] = currentRoom;
 
           for (d of data.exits) {
@@ -76,43 +74,41 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
             }
           }
 
-          console.log("Check Map is correct: ", {
-            [lastRoom]: islandMap[lastRoom],
+          console.log("In this room I see: ", {
             [currentRoom]: islandMap[currentRoom]
           });
 
           logger.saveMap(islandMap);
-          // data.items.forEach(item => {
-          //   if (item.includes("treasure")) {
-          //     console.log("Found a treasure");
-          //     process.exit();
-          //   }
-          // });
 
           // initialize the next move
           let nextMove = null;
 
+          // get unopened doors
           let unopened = data.exits.filter(
             d => islandMap[currentRoom][d] === "?"
           );
+
+          // if we have any unopened doors
           if (unopened.length > 0) {
-            // if we have any unopened doors
-            if (unopened.includes("n")) {
-              nextMove = "n";
+            // Go s then e, then whatever
+            if (unopened.includes("s")) {
+              nextMove = "s";
             } else if (unopened.includes("e")) {
               nextMove = "e";
             } else {
               nextMove = unopened[0];
             }
+
+            // if we have no closed doors
           } else {
-            // return
-            // TODO: here we need to do something to change
             console.log("Found a dead end, switching goal");
+            // update our goal to do bfs of map and traverse to next room
             resolve({ goal: "findDoor", currentRoom });
           }
 
+          // These are helper functions to pick up items while traveling
           const has_items = () => {
-            let eggs = data.items.filter(item => item.includes("treasure"));
+            let eggs = data.items.filter(item => item.includes(treasure));
             if (eggs.length > 0) {
               return eggs[0];
             }
@@ -125,7 +121,7 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
               axios
                 .post(`${BASE_URL}/adv/take/`, req_data, config)
                 .then(res => {
-                  console.log(`\n\nFound a ${name}\n\n`);
+                  console.log(`\n\nFound a ${name} and picked it up\n\n`);
                   cooldown = res.data.cooldown;
                   resolve({ cooldown, nextMove, currentRoom, errors: [null] });
                 })
@@ -137,15 +133,16 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
             });
           };
 
-          // if (has_items()) {
-          //   setTimeout(() => {
-          //     pick_up_Item(has_items())
-          //       .then(res => resolve(res))
-          //       .catch(err => reject(err));
-          //   }, cooldown * 1000);
-          // } else {
-          resolve({ cooldown, nextMove, currentRoom, errors: [null] });
-          // }
+          if (has_items()) {
+            console.log(`waiting ${cooldown} seconds before moving`);
+            setTimeout(() => {
+              pick_up_Item(has_items())
+                .then(res => resolve(res))
+                .catch(err => reject(err));
+            }, cooldown * 1000);
+          } else {
+            resolve({ cooldown, nextMove, currentRoom, errors: [null] });
+          }
         })
         .catch(err => {
           console.log(err);
@@ -163,10 +160,8 @@ function exploreDeep(islandMap, { currentRoom, nextMove: move }) {
         nextMove = unopened[Math.floor(Math.random() * unopened.length)];
         resolve({ nextMove, cooldown: 1 });
       } else {
-        // return
-        // TODO: here we need to switch our goal and do a BFS to the nearest unopened door
         console.log("could not find unopened doors searching map");
-        resolve({ goal: "findDoor", currentRoom });
+        resolve({ goal: "findDoor", currentRoom, cooldown });
         // process.exit();
       }
     }

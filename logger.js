@@ -5,12 +5,11 @@ function logObject(object, path = null) {
   path = path || `./_.room_logs.txt`;
   fs.appendFile(path, `\n${message}`, function(err) {
     if (err) throw err;
-    console.log("Saved!");
   });
 }
 
 function saveMap(islandMap) {
-  console.log("Saving Data");
+  // console.log("Saving Data");
   let mapData = { ...islandMap };
   mapData = JSON.stringify(mapData);
   fs.writeFileSync("./_.map.txt", mapData);

@@ -1,7 +1,7 @@
 const c = require("./config.js");
 const axios = require("axios");
 const logger = require("./logger.js");
-let { config, BASE_URL } = c;
+let { config, BASE_URL, treasure } = c;
 
 // This is used to help fill in our map as we explore
 const opposites = {
@@ -78,9 +78,7 @@ function travel(islandMap, path, cooldown, exploring = false, start = 0) {
 
     for (let d of directions) {
       if (islandMap[currentRoom][d] === nextRoom) {
-        console.log(
-          `Moving ${start + 1} of ${path.length} steps down path\n\n`
-        );
+        console.log(`Moving ${start + 1} of ${path.length} steps down path`);
         console.log(`From ${currentRoom} move ${d} to room ${nextRoom}`);
         foundPath = true;
         let req_data = { direction: `${d}`, next_room_id: `${nextRoom}` };
@@ -114,16 +112,76 @@ function travel(islandMap, path, cooldown, exploring = false, start = 0) {
               });
             }
 
-            return { path, currentRoom, cooldown };
+            return { path, currentRoom, cooldown, items: data.items };
           })
           .then(res => {
             // wait for timeout and do it again
+
+            const has_items = () => {
+              let eggs = res.items.filter(item => item.includes(treasure));
+              if (eggs.length > 0) {
+                return eggs[0];
+              }
+              return false;
+            };
+
+            const pick_up_Item = name => {
+              return new Promise((resolve, reject) => {
+                let req_data = { name: name };
+                axios
+                  .post(`${BASE_URL}/adv/take/`, req_data, config)
+                  .then(res => {
+                    console.log(`\n\nFound a ${name} and picked it up\n\n`);
+                    cooldown = res.data.cooldown;
+                    resolve({
+                      currentRoom,
+                      cooldown,
+                      path
+                    });
+                  })
+                  .catch(err => {
+                    console.log(`couldnt pick up a ${name}`);
+                    console.log(err);
+                    reject(err);
+                  });
+              });
+            };
+
+            // if (has_items()) {
+            //   console.log(`waiting ${cooldown} seconds before moving`);
+            //   setTimeout(() => {
+            //     pick_up_Item(has_items())
+            //       .then(res => {
+            //         if (!res.cooldown) {
+            //           process.exit(1);
+            //         }
+            //         console.log(
+            //           `waiting ${res.cooldown} seconds before moving`
+            //         );
+            //         setTimeout(() => {
+            //           travel(
+            //             islandMap,
+            //             res.path,
+            //             res.cooldown,
+            //             exploring,
+            //             start + 1
+            //           )
+            //             .then(data => resolve(data))
+            //             .catch(err => console.log(err));
+            //         }, res.cooldown * 1000);
+            //       })
+            //       .catch(err => reject(err, res.currentRoom));
+            //   }, cooldown * 1000);
+            // } else {
             console.log("calling next move");
+            console.log(`waiting ${res.cooldown} seconds before moving`);
+
             setTimeout(() => {
               travel(islandMap, res.path, res.cooldown, exploring, start + 1)
                 .then(data => resolve(data))
                 .catch(err => console.log(err));
             }, res.cooldown * 1000);
+            // }
           })
           .catch(err => {
             reject({ ...err.response.data, currentRoom });
