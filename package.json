@@ -1,0 +1,13 @@
+{
+  "name": "cs-build-week-2",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/KerstingJ/CS-Build-Week-2.git",
+  "author": "Josh <Kersting.Josh@Gmail.com>",
+  "license": "MIT",
+  "private": null,
+  "dependencies": {
+    "axios": "^0.19.0",
+    "fs": "^0.0.1-security"
+  }
+}
